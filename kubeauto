@@ -1,0 +1,84 @@
+--- 
+ - name: install kubeadm 
+ hosts: all 
+ tasks: 
+ - name: install docker 
+ shell: curl -fsSL hƩps://test.docker.com -o test-docker.sh 
+ - name: install docker 
+ shell: sh test-docker.sh 
+ - name: Start service docker 
+ service: 
+ name: docker 
+ state: started 
+ enabled: yes 
+ - name: Copy file daemon file 
+ copy: 
+ src: /root/ansible/daemon.json 
+ dest: /etc/docker 
+ - name: Start service docker 
+ service: 
+ name: docker 
+ state: started 
+ enabled: yes 
+ - name: Remove file (delete file) 
+ file: 
+ path: /etc/containerd/config.toml 
+ state: absent 
+ - name: copy the file 
+ copy: 
+ src: /root/ansible/config.toml 
+ dest: /etc/containerd/config.toml 
+ - name: Start service docker 
+ service: 
+ name: containerd 
+ state: restarted 
+ enabled: yes 
+ - name: Copy and Execute the script 
+ script: /root/ansible/kuber.sh 
+ - name: Copy and Execute the script 
+ script: /root/ansible/kubeadm.sh 
+--- 
+ - name: restart 
+ hosts: master 
+ tasks: 
+ - name: run the command 
+ shell: kubeadm init --cri-socket unix:///var/run/containerd/containerd.sock 
+ - name: copy kube config file 
+ lineinfile: 
+ path: /root/.bash_profile 
+ line: export KUBECONFIG=/etc/kubernetes/admin.conf 
+ - name: rebooƩ the server
+ reboot: 
+ connect_Ɵmeout: 600
+ - name: kubeadm tokken 
+ shell: kubeadm token create --print-join-command 
+ register: user_output 
+ - debug: 
+ msg: "{{ user_output.stdout }}" 
+ - name: copy join command to local file 
+ local_acƟon: copy content="{{ user_output.stdout_lines[0] }} --cri-socket 
+unix:///var/run/containerd/containerd.sock" dest="/tmp/user_output" mode=0777 
+--- 
+ - name: restart 
+ hosts: worker 
+ tasks: 
+ - name: copy join command from ansible host to the worker node 
+ copy: 
+ src: /tmp/user_output 
+ dest: /tmp/user_output 
+ mode: 0777 
+ - name: join the worker node to cluster 
+ command: bash /tmp/user_output 
+--- 
+ - name: calico configuraƟon
+ hosts: master 
+ tasks: 
+ - name: install cni 
+ shell: curl hƩps://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/calico.yaml -O 
+ - name: adding admin.config file to .kube directory 
+ shell: mkdir -p $HOME/.kube; sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config; sudo 
+chown $(id -u):$(id -g) $HOME/.kube/config 
+ - name: update 
+ shell: sleep 30 
+ - name: apply calico file 
+ command: kubectl apply -f /home/ubuntu/calico.yaml 
