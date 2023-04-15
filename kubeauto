@@ -3,7 +3,7 @@
  hosts: all 
  tasks: 
  - name: install docker 
- shell: curl -fsSL hƩps://test.docker.com -o test-docker.sh 
+ shell: curl -fsSL https://test.docker.com -o test-docker.sh 
  - name: install docker 
  shell: sh test-docker.sh 
  - name: Start service docker 
